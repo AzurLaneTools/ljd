@@ -140,20 +140,27 @@ def process_folder(in_dir, out_dir, update_outputname=None):
             f.path = str(relpath)
             fs.append(f)
     failed = []
-    cnt = [0, 0]
+    success = []
     for f in fs:
         try:
             f.result()
-            print("SUCCESS %s" % f.path)
-            cnt[0] += 1
+            logger.info("SUCCESS %s" % f.path)
+            success.append(f.path)
         except Exception as e:
-            cnt[1] += 1
             failed.append([f.path, e])
 
     dt = time.time() - start
     for path, e in failed:
-        print("FAILED  %s %r" % (path, e))
-    print("Count: success %s, fail %s in %.3fs" % (cnt[0], cnt[1], dt))
+        logger.info("FAILED %s %r", path, e)
+    logger.warning(
+        "Decompile folder %s -> %s: success %s, fail %s in %.3fs",
+        in_dir,
+        out_dir,
+        len(success),
+        len(failed),
+        dt,
+    )
+    return success
 
 # use LuaJIT-2.0.1 as default target
 set_luajit_version(21)
