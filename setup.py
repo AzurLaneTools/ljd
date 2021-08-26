@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='ljd',
-    version='0.1.0',
+    version='0.1.1',
     description='luajit decompiler',
     author='AutumnSun',
     author_email='q19960105@163.com',
