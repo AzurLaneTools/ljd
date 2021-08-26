@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 setup(
     name='ljd',
@@ -6,6 +6,6 @@ setup(
     description='luajit decompiler',
     author='AutumnSun',
     author_email='q19960105@163.com',
-    packages=['ljd'],
+    packages=find_packages(),
 )
 
