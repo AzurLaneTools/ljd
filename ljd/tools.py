@@ -60,9 +60,9 @@ def set_luajit_version(bc_version):
     ljd.CURRENT_VERSION = bc_version
     # Now we know the LuaJIT version, initialise the opcodes
     if bc_version == 20:
-        from ljd.rawdump.luajit.v2_0.luajit_opcode import _OPCODES as opcodes
+        from ljd.rawdump.opcode.v20 import _OPCODES as opcodes
     elif bc_version == 21:
-        from ljd.rawdump.luajit.v2_1.luajit_opcode import _OPCODES as opcodes
+        from ljd.rawdump.opcode.v21 import _OPCODES as opcodes
     else:
         raise ValueError(f"Unknown LuaJIT opcode module name for version {bc_version}")
 
@@ -102,7 +102,7 @@ def process_file(path_in, path_out):
 
 
 def process_bytes(data):
-    f = io.BytesIO(data.encode())
+    f = io.BytesIO(data)
     ljd.tools.set_luajit_version(21)
     header, prototype = ljd.rawdump.parser.parse(f)
     ast = ljd.tools.decompile(header, prototype)
@@ -154,6 +154,9 @@ def process_folder(in_dir, out_dir, update_outputname=None):
     for path, e in failed:
         print("FAILED  %s %r" % (path, e))
     print("Count: success %s, fail %s in %.3fs" % (cnt[0], cnt[1], dt))
+
+# use LuaJIT-2.0.1 as default target
+set_luajit_version(21)
 
 
 if __name__ == '__main__':
