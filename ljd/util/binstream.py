@@ -18,9 +18,16 @@ class BinStream:
         self.data_byteorder = sys.byteorder
 
     def open(self, filename):
-        self.name = filename
-        self.fd = io.open(filename, 'rb')
-        self.size = os.stat(filename).st_size
+        # support for io.BytesIO
+        if hasattr(filename, 'read'):
+            data = filename.read()
+            self.name = ''
+            self.fd = io.BytesIO(data)
+            self.size = len(data)
+        else:
+            self.name = filename
+            self.fd = io.open(filename, 'rb')
+            self.size = os.stat(filename).st_size
 
     def close(self):
         self.fd.close()
