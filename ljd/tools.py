@@ -24,6 +24,7 @@
 #
 
 import logging
+import io
 import os
 import sys
 import time
@@ -100,7 +101,17 @@ def process_file(path_in, path_out):
         ljd.lua.writer.write(f, ast)
 
 
-def process_folder(in_dir, out_dir):
+def process_bytes(data):
+    f = io.BytesIO(data.encode())
+    ljd.tools.set_luajit_version(21)
+    header, prototype = ljd.rawdump.parser.parse(f)
+    ast = ljd.tools.decompile(header, prototype)
+    fout = io.StringIO()
+    ljd.lua.writer.write(fout, ast)
+    return fout.getvalue()
+
+
+def process_folder(in_dir, out_dir, update_outputname=None):
     from concurrent.futures.process import ProcessPoolExecutor
     from pathlib import Path
 
@@ -120,8 +131,11 @@ def process_folder(in_dir, out_dir):
         for name in names:
             relpath = reldir / name
             path_in = root / name
-            # Do unquote
-            path_out = (out_root / unquote(name)).with_suffix('.lua')
+            if update_outputname is not None:
+                out_name = update_outputname(name)
+            else:
+                out_name = Path(name).with_suffix('.lua')
+            path_out = out_root / out_name
             f = executor.submit(process_file, str(path_in), str(path_out))
             f.path = str(relpath)
             fs.append(f)
