@@ -1,0 +1,36 @@
+name: Releases
+
+on:
+  push:
+    tags:
+      - "*"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Setup Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.x"
+
+      - name: Prepare python
+        run: |
+          pip install -U pip
+          pip install -U setuptools wheel
+
+      - name: Build wheel
+        run: |
+          python setup.py bdist_wheel
+
+      - name: Release
+        uses: ncipollo/release-action@v1
+        with:
+          allowUpdates: true
+          tag: wheel
+          commit: main
+          artifacts: "dist/*"
+          token: ${{ secrets.GITHUB_TOKEN }}
