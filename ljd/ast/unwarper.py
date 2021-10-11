@@ -11,7 +11,7 @@ binop = nodes.BinaryOperator
 
 verbose = False
 catch_asserts = False
-
+skip_eliminate = True
 
 def exp_debug(*args):
     if verbose:
@@ -124,13 +124,13 @@ def unwarp(node, conservative=False):
         else:
             raise
 
-    try:
-        slotworks.simplify_ast(node)
-    except:
-        if catch_asserts:
-            print("-- Decompilation Error: ljd.ast.slotworks.simplify_ast(self.ast)\n", file=sys.stdout)
-        else:
-            raise
+    # try:
+    #     slotworks.simplify_ast(node)
+    # except:
+    #     if catch_asserts:
+    #         print("-- Decompilation Error: ljd.ast.slotworks.simplify_ast(self.ast)\n", file=sys.stdout)
+    #     else:
+    #         raise
 
 
 def _run_step(step, node, **kargs):
@@ -2522,8 +2522,9 @@ def _cleanup_ast(blocks):
 
     # Now that everything is nicely packed together, the code to eliminate temporary variables that
     #  are used in the input part of a for..in loop should be able to get everything.
-    slotworks.eliminate_temporary(blocks[0], False)
-
+    # TODO: eliminate_temporary here is skipped. need to check and fix side effects.
+    if not skip_eliminate:
+        slotworks.eliminate_temporary(blocks[0], False)
     return blocks
 
 
