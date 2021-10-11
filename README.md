@@ -35,26 +35,6 @@ process_file('byte-code-path.lj', 'output-path.lua')
 ```
 
 
-TODO:
----
-
-1. Improve `eliminate_temporary` process.
-	
-	there are things like
-	```lua
-	for xxx do
-		slot2 = 0 + xxx
-	end
-	```
-	it should be
-	```lua
-	slot2 = 0
-	for xxx do
-		slot2 = slot2 + xxx
-	end
-	```
-
-
 Licence:
 ---
 Use [GPL licence](LICENSE).
