@@ -103,9 +103,9 @@ def process_file(path_in, path_out):
 
 def process_bytes(data):
     f = io.BytesIO(data)
-    ljd.tools.set_luajit_version(21)
+    set_luajit_version(21)
     header, prototype = ljd.rawdump.parser.parse(f)
-    ast = ljd.tools.decompile(header, prototype)
+    ast = decompile(header, prototype)
     fout = io.StringIO()
     ljd.lua.writer.write(fout, ast)
     return fout.getvalue()

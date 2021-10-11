@@ -150,14 +150,12 @@ class Visitor(traverse.Visitor):
 
         if show_slot_ids:
             if slot_ids and slot_ids != -1:
-                name += "#"
+                name += "_"
                 if isinstance(slot_ids, list):
-                    name += "{"
                     for i, slot_id in enumerate(slot_ids):
                         if i > 0:
-                            name += "|"
+                            name += "$"
                         name += str(slot_id)
-                    name += "}"
                 else:
                     name += str(slot_ids)
 

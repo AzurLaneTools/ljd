@@ -4,6 +4,7 @@
 
 import warnings
 import os
+import logging
 import ljd.ast.nodes as nodes
 import ljd.ast.traverse as traverse
 from ljd.ast.helpers import insert_table_record
@@ -13,7 +14,7 @@ from dataclasses import dataclass
 
 catch_asserts = False
 debug_verify = "LJD_DEBUG" in os.environ
-
+logger = logging.getLogger(__name__)
 """
 Temporary slot cleanup eliminating assignments - general documentation
 
@@ -78,17 +79,19 @@ class RefsProcessData:
 
 
 def eliminate_temporary(ast, ignore_ambiguous=True, identify_slots=False, safe_mode=True, unwarped=False):
+    logger.debug('Before eliminate %s', ast)
     _eliminate_multres(ast)
 
     slots, unused = _collect_slots(ast, identify_slots=identify_slots, unwarped=unwarped)
     _sort_slots(slots)
+    
     _eliminate_temporary(ast, slots, ignore_ambiguous, safe_mode=safe_mode, unwarped=unwarped)
 
-    # _remove_unused(unused)
+    _remove_unused(unused)
 
     if not unwarped:
         _cleanup_invalid_nodes(ast)
-
+    logger.debug('After eliminate %s', ast)
     return ast
 
 
@@ -110,20 +113,22 @@ def _eliminate_temporary(ast, slots, ignore_ambiguous=True, safe_mode=True, unwa
 
 
 def _fill_refs(data: RefsProcessData, ignore_ambiguous=True, safe_mode=True):
-    # A SlotInfo represents a slot being used in a specific, limited context. There must be only
-    # one write into the slot, but there can by any number of reads from it.
-    # For example (slot1 being the slot in question, hence in caps):
-    #
-    # slot0 = f()
-    # SLOT1 = slot0
-    # my_gbl_1 = SLOT1
-    # my_gbl_2 = SLOT1
-    #
-    # This is a limited enough scope that we can - under some conditions - inline through that
-    # slot. See the comment at the top of the file for more context.
-    #
-    # A massive slot is when it's in a large assignment, such as:
-    # slot0, slot1 = f()
+    """
+    A SlotInfo represents a slot being used in a specific, limited context. There must be only
+    one write into the slot, but there can by any number of reads from it.
+    For example (slot1 being the slot in question, hence in caps):
+    
+    slot0 = f()
+    SLOT1 = slot0
+    my_gbl_1 = SLOT1
+    my_gbl_2 = SLOT1
+    
+    This is a limited enough scope that we can - under some conditions - inline through that
+    slot. See the comment at the top of the file for more context.
+    
+    A massive slot is when it's in a large assignment, such as:
+    slot0, slot1 = f()
+    """
 
     for info in data.slots:
         assignment = info.assignment
@@ -635,6 +640,10 @@ class SlotReference:
         self.path = []
         self.identifier = None
 
+    def __repr__(self) -> str:
+        return 'Ref(%s %s)' % (self.identifier, self.path)
+    
+    __str__ = __repr__
 
 class SlotInfo:
     references: List[SlotReference]
@@ -653,6 +662,8 @@ class SlotInfo:
         # the temporary slot cleanup eliminating assignments)
         self.slot_id = id
 
+    def __repr__(self) -> str:
+        return 'slot%s_%s' % (self.slot, self.slot_id)
 
 class _SlotsCollector(traverse.Visitor):
     class _State:
