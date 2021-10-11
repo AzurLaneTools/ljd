@@ -131,9 +131,9 @@ def _print_list(obj: nodes.VariablesList, prefix: str, level, omit_single=False)
         print(_indent_unit * level + "]")
 
 
-@_printer(nodes.TableElement)
-def _print_table_elem(obj: nodes.TableElement, prefix, level):
-    print(prefix + "TableElement")
+@_printer(nodes.GetItem)
+def _print_table_elem(obj: nodes.GetItem, prefix, level):
+    print(prefix + "GetItem")
     dump("table", obj.table, level + 1)
     dump("key", obj.key, level + 1)
 

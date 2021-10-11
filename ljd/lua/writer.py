@@ -365,7 +365,7 @@ class Visitor(traverse.Visitor):
         return self._is_global(node)
 
     def _is_global(self, node):
-        if isinstance(node, nodes.TableElement):
+        if isinstance(node, nodes.GetItem):
             return self._is_builtin(node.table)
 
         return False
@@ -376,7 +376,7 @@ class Visitor(traverse.Visitor):
             return True
 
         # Otherwise, it must be a table element
-        if not isinstance(dst, nodes.TableElement):
+        if not isinstance(dst, nodes.GetItem):
             return False
 
         # It's key must be a constant
@@ -416,7 +416,7 @@ class Visitor(traverse.Visitor):
             return False
 
         # Ensure the destination is on a table
-        if not isinstance(dst, nodes.TableElement):
+        if not isinstance(dst, nodes.GetItem):
             return False
 
         return True

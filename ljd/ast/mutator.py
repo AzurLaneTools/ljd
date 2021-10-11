@@ -3,11 +3,14 @@
 #
 
 import copy
+import logging
 import warnings
 
 from ljd.ast.helpers import *
 from ljd.bytecode.instructions import SLOT_FALSE, SLOT_TRUE
 
+
+logger = logging.getLogger(__name__)
 
 class SimpleLoopWarpSwapper(traverse.Visitor):
     class _State:
@@ -327,7 +330,7 @@ class MutatorVisitor(traverse.Visitor):
 
             dst = statement.destinations.contents[0]
 
-            if not isinstance(dst, nodes.TableElement):
+            if not isinstance(dst, nodes.GetItem):
                 break
 
             if not is_equal(dst.table, table, False):
@@ -344,7 +347,6 @@ class MutatorVisitor(traverse.Visitor):
 
             if not success:
                 break
-
             consumed += 1
 
         return consumed

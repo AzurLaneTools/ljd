@@ -994,7 +994,7 @@ def _get_simple_local_assignment_slot(start, body, end):
         return -1, None, None
     else:
         slot = true.contents[0].destinations.contents[0]
-        if not isinstance(slot, nodes.TableElement):
+        if not isinstance(slot, nodes.GetItem):
             return slot.slot, slot.type, slot
         elif isinstance(slot.table, nodes.Identifier):
             return slot.table.slot, slot.table.type, slot.table
@@ -1852,6 +1852,7 @@ def _fix_loops(blocks, repeat_until):
                 if warp.target:
                     assert warp.target in body
 
+    # do validate
     for i, block in enumerate(blocks):
         warp = block.warp
 

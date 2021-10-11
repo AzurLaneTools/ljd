@@ -197,7 +197,7 @@ def _recheck_unsafe_cases(ast, unsafe, ignore_ambiguous, safe_mode=True, unwarpe
             simplify_ast(block, dirty_callback=_node_dirty_cb)
 
 
-def _fill_massive_refs(info, data: RefsProcessData, ignore_ambiguous, safe_mode=True):
+def _fill_massive_refs(info: 'SlotInfo', data: RefsProcessData, ignore_ambiguous, safe_mode=True):
     ref = info.references[1]
     holder = _get_holder(ref.path)
 
@@ -301,7 +301,7 @@ def _fill_simple_refs(info, data: RefsProcessData, ignore_ambiguous, safe_mode=T
 
         holder = _get_holder(ref.path)
 
-        is_element = isinstance(holder, nodes.TableElement)
+        is_element = isinstance(holder, nodes.GetItem)
 
         if is_element:
             # Fixes an error on this:
@@ -400,7 +400,7 @@ def _eliminate_simple_cases(simple):
             is_str = isinstance(src, nodes.Constant) and src.type == nodes.Constant.T_STRING
             if isinstance(holder, nodes.FunctionCall) and holder.function == ref.identifier:
                 continue
-            elif isinstance(holder, nodes.TableElement) and holder.table == ref.identifier and not is_str:
+            elif isinstance(holder, nodes.GetItem) and holder.table == ref.identifier and not is_str:
                 continue
 
         # if the assignment's src is FunctionDefinition and references 3 times(one time for assignment,and two
@@ -420,14 +420,14 @@ def _eliminate_simple_cases(simple):
                     first.identifier.name = 'slot%d' % first.identifier.slot
                 continue
         elif isinstance(src, OPERATOR_TYPES) \
-                and isinstance(holder, nodes.TableElement) \
+                and isinstance(holder, nodes.GetItem) \
                 and holder.key == dst \
                 and isinstance(ref.path[-3], nodes.FunctionCall):
             # Handle a special case where a function has been incorrectly marked as a method now that
             # a slot will be reduced to an expression with an operator
             function = ref.path[-3]
             if function.is_method and \
-                    (not isinstance(function, nodes.TableElement)
+                    (not isinstance(function, nodes.GetItem)
                      or function.key.type != nodes.Constant.T_STRING):
                 function.arguments.contents.insert(0, holder.table)
                 function.is_method = False
@@ -831,7 +831,7 @@ class _SlotsCollector(traverse.Visitor):
 
             self._commit_slot(slot, node)
 
-    def _register_slot_reference(self, info, node, update_id=True):
+    def _register_slot_reference(self, info: 'SlotInfo', node, update_id=True):
         reference = SlotReference()
         reference.identifier = node
 
@@ -856,7 +856,7 @@ class _SlotsCollector(traverse.Visitor):
 
     # ##
 
-    def visit_assignment(self, node):
+    def visit_assignment(self, node: nodes.Assignment):
         self._visit(node.expressions)
         self._skip = node.expressions
 
@@ -1020,7 +1020,7 @@ class _SimplifyVisitor(traverse.Visitor):
             return
 
         arg0 = args[0]
-        if not isinstance(func, nodes.TableElement) or not isinstance(func.table, nodes.Identifier):
+        if not isinstance(func, nodes.GetItem) or not isinstance(func.table, nodes.Identifier):
             return
         elif isinstance(func.key, nodes.Identifier):
             if func.key.type != nodes.Identifier.T_SLOT:

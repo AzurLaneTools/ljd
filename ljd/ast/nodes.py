@@ -4,9 +4,83 @@
 
 
 # We should visit stuff in it's execution order. That's important
+from functools import lru_cache
+import warnings
+
+from ljd.ast.traverse import Visitor
 
 
-class FunctionDefinition:
+@lru_cache()
+def subclass_name_mapping(cls):
+    mapping = {}
+    for subcls in cls.__subclasses__():
+        name = subcls.__name__
+        if name in mapping:
+            warnings.warn('Found duplicate class: %s %s', mapping[name], subcls)
+        mapping[name] = subcls
+        for subname, subsubcls in subclass_name_mapping(subcls).items():
+            mapping[subname] = subsubcls
+    return mapping
+
+
+def to_dict(obj, visited=None):
+    if visited is None:
+        visited = set()
+    if isinstance(obj, list):
+        return [to_dict(item, visited) for item in obj]
+    if not isinstance(obj, AstNode):
+        return obj
+
+    objid = id(obj)
+    if objid in visited:
+        return {'class': 'Ref', '_id': objid}
+    visited.add(objid)
+
+    d = {'class': obj.__class__.__name__, '_id': objid}
+    for name in obj._slots:
+        slot = getattr(obj, name, None)
+        d[name] = to_dict(slot, visited)
+    return d
+
+
+def load_dict(data, mapping={}):
+    if isinstance(data, list):
+        return [load_dict(item, mapping) for item in data]
+    if not isinstance(data, dict):
+        return data
+    cls_map = subclass_name_mapping(AstNode)
+    data = data.copy()
+    cls_name = data.pop('class')
+    obj_id = data.pop('_id')
+    if cls_name == 'Ref':
+        return mapping[obj_id]
+    subcls = cls_map[cls_name]
+    mapping[obj_id] = res = subcls()
+    for key in data:
+        setattr(res, key, load_dict(data[key], mapping))
+    return res
+
+
+class AstNode(object):
+    _slots = []
+
+    def __str__(self) -> str:
+        return str(to_dict(self))
+
+    def __repr__(self):
+        return '%s(%s)' % (self.__class__.__name__, id(self))
+
+    def to_dict(self):
+        return to_dict(self)
+
+    @staticmethod
+    def load_dict(data):
+        return load_dict(data)
+
+
+class FunctionDefinition(AstNode):
+    _slots = ['arguments', 'statements']
+
     def __init__(self):
         self.arguments = IdentifiersList()
         self.statements = StatementsList()
@@ -33,7 +107,9 @@ class FunctionDefinition:
     __repr__ = __str__
 
 
-class Block:
+class Block(AstNode):
+    _slots = ['index', 'first_address', 'last_address', 'contents', 'warp', 'loop']
+
     def __init__(self):
         self.index = -1
         self.warp = None
@@ -43,7 +119,7 @@ class Block:
         self.warpins_count = 0
         self.loop = False
 
-    def _accept(self, visitor):
+    def _accept(self, visitor: Visitor):
         visitor._visit_node(visitor.visit_block, self)
 
         visitor._visit_list(self.contents)
@@ -70,18 +146,11 @@ class Block:
             + "}}"
         )
 
-    def __str__(self):
-        cnt = len(self.contents)
-        items = [str(c) for c in self.contents]
-        if len(self.contents) > 1:
-            return '%s<%s>(\n%s\n)' % (self.__class__.__name__, cnt, ',\n'.join(items))
-        else:
-            return '%s<%s>(%s)' % (self.__class__.__name__, cnt, ', '.join(items))
-
     __repr__ = __str__
 
 
-class TableConstructor:
+class TableConstructor(AstNode):
+    _slots = ['array', 'records']
     anti_loop = set()
     cur_visitor = None
 
@@ -113,7 +182,9 @@ class TableConstructor:
         return 'Table(...)'
 
 
-class ArrayRecord:
+class ArrayRecord(AstNode):
+    _slots = ['value']
+
     def __init__(self):
         self.value = None
 
@@ -125,7 +196,9 @@ class ArrayRecord:
         visitor._leave_node(visitor.leave_array_record, self)
 
 
-class TableRecord:
+class TableRecord(AstNode):
+    _slots = ['key', 'value']
+
     def __init__(self):
         self.key = None
         self.value = None
@@ -139,7 +212,9 @@ class TableRecord:
         visitor._leave_node(visitor.leave_table_record, self)
 
 
-class Assignment:
+class Assignment(AstNode):
+    _slots = ['destinations', 'expressions']
+
     T_LOCAL_DEFINITION = 0
     T_NORMAL = 1
 
@@ -157,23 +232,15 @@ class Assignment:
         visitor._leave_node(visitor.leave_assignment, self)
 
     def __str__(self):
-        return (
-            "{ Assignment: { destinations: "
-            + str(self.destinations)
-            + ", expressions: "
-            + str(self.expressions)
-            + ", type: "
-            + ["T_LOCAL_DEFINITION", "T_NORMAL"][self.type]
-        )
-
-    def __str__(self):
         typ = ["LOCAL", "NORMAL"][self.type]
         return "Assignment<%s>(%s, %s)" % (typ, self.destinations, self.expressions)
 
     __repr__ = __str__
 
 
-class BinaryOperator:
+class BinaryOperator(AstNode):
+    _slots = ['left', 'type', 'right']
+
     name_map = {
         0: 'or',
         10: 'and',
@@ -313,7 +380,9 @@ class BinaryOperator:
         return 'BinOp({} {} {})'.format(self.left, op, self.right)
 
 
-class UnaryOperator:
+class UnaryOperator(AstNode):
+    _slots = ['type', 'operand']
+
     name_map = {60: 'not', 61: 'len', 62: 'minus', 63: 'str', 64: 'number'}
     T_NOT = 60  # not operand
     T_LENGTH_OPERATOR = 61  # #operand
@@ -345,7 +414,9 @@ class UnaryOperator:
         return 'BinOp({} {})'.format(op, self.operand)
 
 
-class StatementsList:
+class StatementsList(AstNode):
+    _slots = ['contents']
+
     def __init__(self):
         self.contents = []
 
@@ -363,7 +434,7 @@ class StatementsList:
     __repr__ = __str__
 
 
-class IdentifiersList(Block):
+class IdentifiersList(StatementsList):
     def __init__(self):
         self.contents = []
 
@@ -375,7 +446,7 @@ class IdentifiersList(Block):
         visitor._leave_node(visitor.leave_identifiers_list, self)
 
 
-class RecordsList(Block):
+class RecordsList(StatementsList):
     def __init__(self):
         self.contents = []
 
@@ -387,7 +458,7 @@ class RecordsList(Block):
         visitor._leave_node(visitor.leave_records_list, self)
 
 
-class VariablesList(Block):
+class VariablesList(StatementsList):
     def __init__(self):
         self.contents = []
 
@@ -399,7 +470,7 @@ class VariablesList(Block):
         visitor._leave_node(visitor.leave_variables_list, self)
 
 
-class ExpressionsList(Block):
+class ExpressionsList(StatementsList):
     def __init__(self):
         self.contents = []
 
@@ -412,7 +483,9 @@ class ExpressionsList(Block):
 
 
 # Called Name in the Lua 5.1 reference
-class Identifier:
+class Identifier(AstNode):
+    _slots = ['name', 'type', 'slot', 'id']
+
     T_SLOT = 0
     T_LOCAL = 1
     T_UPVALUE = 2
@@ -467,13 +540,15 @@ class Identifier:
 # helper vararg/varreturn
 
 
-class MULTRES:
+class MULTRES(AstNode):
     def _accept(self, visitor):
         visitor._visit_node(visitor.visit_multres, self)
         visitor._leave_node(visitor.leave_multres, self)
 
 
-class TableElement:
+class GetItem(AstNode):
+    _slots = ['table', 'key']
+
     def __init__(self):
         self.table = None
         self.key = None
@@ -493,18 +568,15 @@ class TableElement:
         return "{0}@{1}".format(str(self.key), str(self.table))
 
 
-class Vararg:
+class Vararg(AstNode):
     def _accept(self, visitor):
         visitor._visit_node(visitor.visit_vararg, self)
         visitor._leave_node(visitor.leave_vararg, self)
 
-    def __str__(self) -> str:
-        return 'Vararg'
 
-    __repr__ = __str__
+class FunctionCall(AstNode):
+    _slots = ['function', 'arguments', 'is_method']
 
-
-class FunctionCall:
     def __init__(self):
         self.function = None
         self.arguments = ExpressionsList()
@@ -522,7 +594,9 @@ class FunctionCall:
         return "FunctionCall(%s %s)" % (self.function, self.arguments)
 
 
-class If:
+class If(AstNode):
+    _slots = ['expression', 'then_block', 'elseifs', 'else_block']
+
     def __init__(self):
         self.expression = None
         self.then_block = StatementsList()
@@ -541,11 +615,10 @@ class If:
 
         visitor._leave_node(visitor.leave_if, self)
 
-    def __str__(self):
-        return "If(...)"
 
+class ElseIf(AstNode):
+    _slots = ['expression', 'then_block']
 
-class ElseIf:
     def __init__(self):
         self.expression = None
         self.then_block = StatementsList()
@@ -562,7 +635,9 @@ class ElseIf:
 # ##
 
 
-class UnconditionalWarp:
+class UnconditionalWarp(AstNode):
+    _slots = ['type', 'target', 'is_uclo']
+
     T_JUMP = 0
     T_FLOW = 1
 
@@ -578,21 +653,10 @@ class UnconditionalWarp:
 
         visitor._leave_node(visitor.leave_unconditional_warp, self)
 
-    def __str__(self):
-        return (
-            "{UnconditionalWarp: {type: "
-            + ["T_JUMP", "T_FLOW"][self.type]
-            + ", target: "
-            + str("Block " + str(self.target.index) if self.target else None)
-            + ", is_uclo: "
-            + str(self.is_uclo)
-            + " }}"
-        )
 
-    __repr__ = __str__
+class ConditionalWarp(AstNode):
+    _slots = ['condition', 'true_target', 'false_target']
 
-
-class ConditionalWarp:
     def __init__(self):
         self.condition = None
         self.true_target = None
@@ -607,21 +671,10 @@ class ConditionalWarp:
 
         visitor._leave_node(visitor.leave_conditional_warp, self)
 
-    def __str__(self):
-        return (
-            "{ConditionalWarp: { condition: "
-            + str(self.condition)
-            + ", true_target: "
-            + str("Block " + str(self.true_target.index) if self.true_target else None)
-            + ", false_target: "
-            + str(
-                "Block " + str(self.false_target.index) if self.false_target else None
-            )
-            + "} }"
-        )
 
+class IteratorWarp(AstNode):
+    _slots = ['variables', 'controls', 'body', 'way_out']
 
-class IteratorWarp:
     def __init__(self):
         self.variables = VariablesList()
         self.controls = ExpressionsList()
@@ -639,7 +692,9 @@ class IteratorWarp:
         visitor._leave_node(visitor.leave_iterator_warp, self)
 
 
-class NumericLoopWarp:
+class NumericLoopWarp(AstNode):
+    _slots = ['index', 'controls', 'body', 'way_out']
+
     def __init__(self):
         self.index = Identifier()
         self.controls = ExpressionsList()
@@ -657,7 +712,7 @@ class NumericLoopWarp:
         visitor._leave_node(visitor.leave_numeric_loop_warp, self)
 
 
-class EndWarp:
+class EndWarp(AstNode):
     def _accept(self, visitor):
         visitor._visit_node(visitor.visit_end_warp, self)
         visitor._leave_node(visitor.leave_end_warp, self)
@@ -671,7 +726,9 @@ class EndWarp:
 # ##
 
 
-class Return:
+class Return(AstNode):
+    _slots = ['returns']
+
     def __init__(self):
         self.returns = ExpressionsList()
 
@@ -688,13 +745,15 @@ class Return:
     __repr__ = __str__
 
 
-class Break:
+class Break(AstNode):
     def _accept(self, visitor):
         visitor._visit_node(visitor.visit_break, self)
         visitor._leave_node(visitor.leave_break, self)
 
 
-class While:
+class While(AstNode):
+    _slots = ['expression', 'statements']
+
     def __init__(self):
         self.expression = None
         self.statements = StatementsList()
@@ -708,7 +767,9 @@ class While:
         visitor._leave_node(visitor.leave_while, self)
 
 
-class RepeatUntil:
+class RepeatUntil(AstNode):
+    _slots = ['expression', 'statements']
+
     def __init__(self):
         self.expression = None
         self.statements = StatementsList()
@@ -722,7 +783,9 @@ class RepeatUntil:
         visitor._leave_node(visitor.leave_repeat_until, self)
 
 
-class NumericFor:
+class NumericFor(AstNode):
+    _slots = ['variable', 'expression', 'statements']
+
     def __init__(self):
         self.variable = None
         self.expressions = ExpressionsList()
@@ -738,7 +801,9 @@ class NumericFor:
         visitor._leave_node(visitor.leave_numeric_for, self)
 
 
-class IteratorFor:
+class IteratorFor(AstNode):
+    _slots = ['expressions', 'expression', 'statements']
+
     def __init__(self):
         self.expressions = ExpressionsList()
         self.identifiers = VariablesList()
@@ -755,9 +820,12 @@ class IteratorFor:
 
     def __str__(self) -> str:
         return 'For(%s, %s, %s)' % (self.expressions, self.identifiers, self.statements)
+
     __repr__ = __str__
 
-class Constant:
+
+class Constant(AstNode):
+    _slots = ['type', 'value']
     T_INTEGER = 0
     T_FLOAT = 1
     T_STRING = 2
@@ -775,7 +843,9 @@ class Constant:
         return str(self.value)
 
 
-class Primitive:
+class Primitive(AstNode):
+    _slots = ['type']
+
     T_NIL = 0
     T_TRUE = 1
     T_FALSE = 2
@@ -791,9 +861,6 @@ class Primitive:
         return ["nil", "True", "False"][self.type]
 
 
-class NoOp:
-    def __init__(self):
-        pass
-
+class NoOp(AstNode):
     def _accept(self, visitor):
         pass

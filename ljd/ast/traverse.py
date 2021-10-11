@@ -244,7 +244,7 @@ class Visitor:
             self._visit(node)
 
 
-def traverse(visitor, node):
+def traverse(visitor: Visitor, node):
     if isinstance(node, list):
         visitor._visit_list(node)
     else:

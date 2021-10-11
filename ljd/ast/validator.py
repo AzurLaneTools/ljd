@@ -64,12 +64,12 @@ EXPRESSION_TYPES = (
     nodes.BinaryOperator,
     nodes.UnaryOperator,
     nodes.MULTRES,
-    nodes.TableElement,
+    nodes.GetItem,
 )
 
 VARIABLE_TYPES = (
     nodes.Identifier,
-    nodes.TableElement,
+    nodes.GetItem,
     nodes.MULTRES  # It's not valid here, but it is a hack anyway...
 )
 

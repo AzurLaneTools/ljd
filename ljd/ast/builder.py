@@ -603,7 +603,7 @@ def _build_table_mass_assignment(state, addr, instruction):
 
     base = instruction.A
 
-    destination = nodes.TableElement()
+    destination = nodes.GetItem()
     destination.key = nodes.MULTRES()
     destination.table = _build_slot(state, addr, base - 1)
 
@@ -839,7 +839,7 @@ def _build_const_expression(state, addr, instruction):
 
 
 def _build_table_element(state, addr, instruction):
-    node = nodes.TableElement()
+    node = nodes.GetItem()
     node.table = _build_slot(state, addr, instruction.B)
 
     if instruction.CD_type == ins.T_VAR:
@@ -998,7 +998,7 @@ def _build_identifier(state, addr, slot, want_type):
 
 
 def _build_global_variable(state, addr, slot):
-    node = nodes.TableElement()
+    node = nodes.GetItem()
     node.table = nodes.Identifier()
     node.table.type = nodes.Identifier.T_BUILTIN
     node.table.name = "_env"

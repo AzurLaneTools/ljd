@@ -115,7 +115,7 @@ def is_equal(a, b, strict=True):
 
     if isinstance(a, nodes.Identifier):
         return a.type == b.type and a.slot == b.slot
-    elif isinstance(a, nodes.TableElement):
+    elif isinstance(a, nodes.GetItem):
         return is_equal(a.table, b.table, strict) \
                and is_equal(a.key, b.key, strict)
     elif isinstance(a, nodes.Constant):
