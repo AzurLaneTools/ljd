@@ -28,7 +28,6 @@ import io
 import os
 import sys
 import time
-from urllib.parse import unquote
 
 import ljd.rawdump.parser
 import ljd.rawdump.code
@@ -90,7 +89,7 @@ def decompile(header, prototype):
 
 
 def process_file(path_in, path_out):
-    logger.info('handle %s', path_in)
+    logger.debug('process file start %s -> %s', path_in, path_out)
 
     header, prototype = ljd.rawdump.parser.parse(path_in)
     assert prototype
@@ -103,7 +102,7 @@ def process_file(path_in, path_out):
 
 def process_bytes(data):
     f = io.BytesIO(data)
-    set_luajit_version(21)
+
     header, prototype = ljd.rawdump.parser.parse(f)
     ast = decompile(header, prototype)
     fout = io.StringIO()
@@ -144,7 +143,7 @@ def process_folder(in_dir, out_dir, update_outputname=None):
     for f in fs:
         try:
             f.result()
-            logger.info("SUCCESS %s" % f.path)
+            logger.debug("SUCCESS %s" % f.path)
             success.append(f.path)
         except Exception as e:
             failed.append([f.path, e])
