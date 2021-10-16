@@ -65,7 +65,17 @@ class AstNode(object):
     _slots = []
 
     def __str__(self) -> str:
-        return str(to_dict(self))
+        contains = []
+        for key in self._slots:
+            item = getattr(self, key, None)
+            if isinstance(item, (StatementsList, list)):
+                key = '%d %s' % (len(item), key)
+            contains.append(key)
+        if contains:
+            contains = ': ' + ', '.join(contains)
+        else:
+            contains = ''
+        return '%s(%s%s)' % (self.__class__.__name__, id(self), contains)
 
     def __repr__(self):
         return '%s(%s)' % (self.__class__.__name__, id(self))
@@ -432,6 +442,9 @@ class StatementsList(AstNode):
         return '%s(\n%s\n)' % (self.__class__.__name__, '\n'.join(items))
 
     __repr__ = __str__
+
+    def __len__(self):
+        return len(self.contents)
 
 
 class IdentifiersList(StatementsList):
