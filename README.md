@@ -1,7 +1,7 @@
 LuaJIT Raw-Bytecode Decompiler (LJD)
 ===
 
-A Rework based on [Dr-MTN/luajit-decompiler](https://github.com/Dr-MTN/luajit-decompiler)
+Based on [Dr-MTN/luajit-decompiler](https://github.com/Dr-MTN/luajit-decompiler)
 
 __WARNING!__ This code is not finished or tested! There is not even
 the slightest warranty that the resulting code is even close to the original.
