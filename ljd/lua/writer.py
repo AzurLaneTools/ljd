@@ -16,6 +16,9 @@ compact_table_constructors = False
 comment_empty_blocks = True
 show_slot_ids = False
 show_line_info = False
+# use sytanx `name = function( ...`
+# so that we can search 'name =' for function definition
+raw_function_sytanx = True
 
 CMD_START_STATEMENT = 0
 CMD_END_STATEMENT = 1
@@ -178,15 +181,22 @@ class Visitor(traverse.Visitor):
             if self._state().function_local:
                 self._write("local ")
 
-            self._write("function ")
-
             fn = self._state().function_name
-            if is_method:
-                self._visit(fn.table)
-                self._write(":")
-                self._write(fn.key)
-            else:
+            if raw_function_sytanx:
+                # Use raw sytanx:
+                # local name = function(...
                 self._visit(fn)
+                self._write(" = function")
+            else:
+                # local function name(...
+                self._write("function ")
+
+                if is_method:
+                    self._visit(fn.table)
+                    self._write(":")
+                    self._write(fn.key)
+                else:
+                    self._visit(fn)
 
             self._write("(")
 
@@ -196,8 +206,8 @@ class Visitor(traverse.Visitor):
 
         args = node.arguments
 
-        # If this is a method, remove the "self" argument
-        if is_method:
+        # If this is a method, and raw_function_sytanx=False, remove the "self" argument
+        if is_method and not raw_function_sytanx:
             # AFAIK we don't ever use the args again, and if we
             #  use a new args object then the original one gets written later on
             orig = args.contents
